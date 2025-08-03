@@ -6,7 +6,6 @@ import {
   Dimensions, 
   TouchableOpacity,
   Animated,
-  PanResponder 
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
@@ -29,28 +28,32 @@ export default function GameScreen() {
   const [score, setScore] = useState(0);
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [gameRunning, setGameRunning] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(90);
 
   const createShape = (): Shape => {
-    const size = Math.random() * 40 + 30; // Random size between 30-70
+    const size = Math.random() * 40 + 30;
     return {
       id: Math.random().toString(),
       type: shapeTypes[Math.floor(Math.random() * shapeTypes.length)],
       x: Math.random() * (screenWidth - size),
-      y: new Animated.Value(-size),
+      y: new Animated.Value(-size + headerHeight),
       color: colors[Math.floor(Math.random() * colors.length)],
       size,
-      speed: Math.random() * 2 + 1, // Random speed between 1-3
+      speed: Math.random() * 2 + 1 +2,
     };
+   
   };
 
   const animateShape = (shape: Shape) => {
     Animated.timing(shape.y, {
       toValue: screenHeight + shape.size,
-      duration: (screenHeight + shape.size * 2) / shape.speed * 16, // Adjust for smooth animation
+      duration: (screenHeight + shape.size * 2) / shape.speed * 16,
       useNativeDriver: false,
     }).start(() => {
-      // Remove shape when it reaches bottom
-      setShapes(prevShapes => prevShapes.filter(s => s.id !== shape.id));
+      // Use requestAnimationFrame to defer the state update
+      requestAnimationFrame(() => {
+        setShapes(prevShapes => prevShapes.filter(s => s.id !== shape.id));
+      });
     });
   };
 
@@ -66,8 +69,11 @@ export default function GameScreen() {
   };
 
   const handleShapeTap = (shapeId: string) => {
-    setShapes(prevShapes => prevShapes.filter(s => s.id !== shapeId));
-    setScore(prevScore => prevScore + 10);
+    // Use requestAnimationFrame to defer the state updates
+    requestAnimationFrame(() => {
+      setShapes(prevShapes => prevShapes.filter(s => s.id !== shapeId));
+      setScore(prevScore => prevScore + 10);
+    });
   };
 
   useEffect(() => {
@@ -75,89 +81,104 @@ export default function GameScreen() {
       const interval = setInterval(() => {
         const newShape = createShape();
         setShapes(prevShapes => [...prevShapes, newShape]);
-        animateShape(newShape);
-      }, 1000); // Create new shape every second
+        // Defer the animation start
+        requestAnimationFrame(() => {
+          animateShape(newShape);
+        });
+      }, 1000);
 
       return () => clearInterval(interval);
     }
-  }, [gameRunning]);
-
-  const renderShape = (shape: Shape) => {
-    const shapeStyle = {
-      position: 'absolute' as const,
-      left: shape.x,
-      width: shape.size,
-      height: shape.size,
-      backgroundColor: shape.color,
-    };
-
-    const animatedStyle = {
-      transform: [{ translateY: shape.y }],
-    };
-
-    if (shape.type === 'square') {
-      return (
-        <Animated.View key={shape.id} style={[shapeStyle, animatedStyle]}>
-          <TouchableOpacity
-            style={[styles.square, { backgroundColor: shape.color, width: shape.size, height: shape.size }]}
-            onPress={() => handleShapeTap(shape.id)}
-          />
-        </Animated.View>
-      );
-    } else if (shape.type === 'triangle') {
-      return (
-        <Animated.View key={shape.id} style={[shapeStyle, animatedStyle]}>
-          <TouchableOpacity
-            style={[
-              styles.triangle,
-              {
-                width: 0,
-                height: 0,
-                borderLeftWidth: shape.size / 2,
-                borderRightWidth: shape.size / 2,
-                borderBottomWidth: shape.size,
-                borderBottomColor: shape.color,
-              }
-            ]}
-            onPress={() => handleShapeTap(shape.id)}
-          />
-        </Animated.View>
-      );
-    } else {
-      return (
-        <Animated.View key={shape.id} style={[shapeStyle, animatedStyle]}>
-          <TouchableOpacity
-            style={[
-              styles.circle,
-              {
-                backgroundColor: shape.color,
-                width: shape.size,
-                height: shape.size,
-                borderRadius: shape.size / 2,
-              }
-            ]}
-            onPress={() => handleShapeTap(shape.id)}
-          />
-        </Animated.View>
-      );
-    }
+  }, [gameRunning, headerHeight]);
+const renderShape = (shape: Shape) => {
+  const baseStyle = {
+    position: 'absolute' as const,
+    left: shape.x,
   };
+
+  const animatedStyle = {
+    transform: [{ translateY: shape.y }],
+  };
+
+  if (shape.type === 'square') {
+    return (
+      <Animated.View key={shape.id} style={[baseStyle, animatedStyle]}>
+        <TouchableOpacity
+          style={[
+            styles.square, 
+            { 
+              backgroundColor: shape.color, 
+              width: shape.size, 
+              height: shape.size 
+            }
+          ]}
+          onPress={() => handleShapeTap(shape.id)}
+          activeOpacity={0.7}
+        />
+      </Animated.View>
+    );
+  } else if (shape.type === 'triangle') {
+    return (
+      <Animated.View key={shape.id} style={[baseStyle, animatedStyle]}>
+        <TouchableOpacity
+          style={[
+            styles.triangle,
+            {
+              width: 0,
+              height: 0,
+              borderLeftWidth: shape.size / 2,
+              borderRightWidth: shape.size / 2,
+              borderBottomWidth: shape.size,
+              borderBottomColor: shape.color,
+              borderLeftColor: 'transparent',
+              borderRightColor: 'transparent',
+            }
+          ]}
+          onPress={() => handleShapeTap(shape.id)}
+          activeOpacity={0.7}
+        />
+      </Animated.View>
+    );
+  } else { // circle
+    return (
+      <Animated.View key={shape.id} style={[baseStyle, animatedStyle]}>
+        <TouchableOpacity
+          style={[
+            styles.circle,
+            {
+              backgroundColor: shape.color,
+              width: shape.size,
+              height: shape.size,
+              borderRadius: shape.size / 2,
+            }
+          ]}
+          onPress={() => handleShapeTap(shape.id)}
+          activeOpacity={0.7}
+        />
+      </Animated.View>
+    );
+  }
+};
+  
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
       
-      {/* Score Display */}
-      <View style={styles.scoreContainer}>
+      <View 
+        style={styles.scoreContainer}
+        onLayout={(event) => {
+          const { height } = event.nativeEvent.layout;
+          setHeaderHeight(height);
+        }}
+      >
         <Text style={styles.scoreText}>Score: {score}</Text>
       </View>
 
-      {/* Game Area */}
       <View style={styles.gameArea}>
         {shapes.map(renderShape)}
       </View>
 
-      {/* Game Controls */}
       <View style={styles.controlsContainer}>
         {!gameRunning ? (
           <TouchableOpacity style={styles.startButton} onPress={startGame}>
