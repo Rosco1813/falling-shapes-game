@@ -79,13 +79,24 @@ export default function GameScreen() {
   useEffect(() => {
     if (gameRunning) {
       const interval = setInterval(() => {
+
+     // CREATE MULTIPLE SHAPES AT ONCE
+      const numberOfShapes = 3; // Change this number to spawn more/fewer shapes
+      const newShapes: Shape[] = [];
+
+      for (let i = 0; i < numberOfShapes; i++) {
         const newShape = createShape();
-        setShapes(prevShapes => [...prevShapes, newShape]);
-        // Defer the animation start
+        newShapes.push(newShape);
+        
+        // Start animation for each shape
         requestAnimationFrame(() => {
           animateShape(newShape);
         });
-      }, 1000);
+      }
+      
+      // Add all new shapes to state at once
+      setShapes(prevShapes => [...prevShapes, ...newShapes]);
+    }, 1000); // Still every 1 second, but now spawns 3 shapes
 
       return () => clearInterval(interval);
     }
